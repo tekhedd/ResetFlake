@@ -16,8 +16,8 @@
 //
 // TODO: web config 
 
-const char * ssid = "bitrotIOS";
-const char * passwd = "goo12345";
+const char * ssid = "wifi";
+const char * passwd = "password";
 
 // Use both host name and IP to check that dns and routing are working. 
 // Do not 100% trust hostname-based ping, because the default router can 
@@ -38,13 +38,13 @@ int relayPin = D1;
 // 
 // Define this to make all the timeouts shorter for debugging.
 //
-#define IMPATIENT_DEBUG_MODE 1
+// #define IMPATIENT_DEBUG_MODE 1
 
 // Default interval at which to ping servers
 #ifdef IMPATIENT_DEBUG_MODE
 #define DEFAULT_POLL_MS (15000)
 #else
-#define DEFAULT_POLL_MS (60000)
+#define DEFAULT_POLL_MS (90000)
 #endif
 
 //
@@ -68,6 +68,13 @@ int relayPin = D1;
 
 // Additional time to stay off on subsequent retries
 #define STAY_OFF_INCREMENT (1000)
+
+//
+// Ping config: A reset takes ~90s, and then everything downstream
+// of the modem has to reconfigure. It's worth at least a few
+// seconds to retry if the first ping attempt fails.
+//
+#define PING_RETRY_MS (10000)
 
 //
 // -- Internal state
@@ -141,39 +148,75 @@ void loop() {
   Serial.print(sleepytime / 1000);
   Serial.print("s)");
   delay(sleepytime);
-  Serial.println("wakeup!");
+  Serial.println(" wakeup!");
 }
 
 bool doPing()
 {
   // The net is up if we can ping our upstream IP (or something nearby), 
-  // and also DNS is working. Centurylink's DNS sometimes fails until we
+  // and also DNS is working. 
+  //
+  // Reference config: Centurylink's DNS sometimes fails until we
   // reset the modem, even though IP routing still works. :(
 
-  Serial.print("Pinging host: ");
-  Serial.print(pingHost);
-  Serial.print("...");
+  // If we can't get both our pings within a set time, it failed
+  int startTime = millis();
 
-  if (!Ping.ping(pingHost, 1)) {
-    Serial.println("fail. :(");
+  Serial.print("Pinging ip: ");
+  Serial.print(pingIp);
+  Serial.print("..");
+  if (!persistentPing(pingIp, startTime))
     return false;
-  }
+    
   int avg_time_ms = Ping.averageTime();
   Serial.print(avg_time_ms);
   Serial.println("ms");
+
+  // And now by hostname
   
-  Serial.print("Pinging ip: ");
-  Serial.print(pingIp);
-  Serial.print("...");
-  if (!Ping.ping(pingIp, 1)) {
-    Serial.println("fail. :(");
+  IPAddress byNameIp;
+  if (!WiFi.hostByName(pingHost, byNameIp))
     return false;
-  }
+
+  Serial.print("Pinging host ");
+  Serial.print(pingHost);
+  Serial.print(" at ");
+  Serial.print(byNameIp);
+  Serial.print("..");
+
+  if (!persistentPing(byNameIp, startTime))
+    return false;
+  
   avg_time_ms = Ping.averageTime();
   Serial.print(avg_time_ms);
   Serial.println("ms");
   
   return true;
+}
+
+///
+/// Ping the address repeatedly until one successful ping happens
+/// or we reach PING_RETRY_MS, assuming we started at time startMillis
+///
+bool persistentPing(IPAddress dest, long startMillis)
+{
+  while (true)
+  {
+    if (Ping.ping(dest, 1)) {
+      return true;
+    }
+
+    if ((millis() - startMillis) > PING_RETRY_MS) // timed out?
+    {
+      Serial.println("fail. :(");
+      return false;
+    }
+    else
+    {
+      Serial.print("retrying..");
+      delay(1000);
+    }
+  }
 }
 
 void doReset()
