@@ -1,7 +1,7 @@
 ## ResetFlake
 
-An Arduion Sketch that monitor WiFi and resets a modem or router when 
-the internet is not reachable. For the WeMos D1 Mini or compatible board. 
+An Arduion Sketch that resets a modem or router when 
+the Internet is not reachable. For the WeMos D1 Mini or compatible board. 
 
 Should be fairly portable to any ESP8266 setup, with some configuration.
 Note that I am using the NC (normally closed) pins on a relay attached
@@ -59,4 +59,4 @@ located at "/hello".
 
 ### License
 
-Licensed under the WTFPL.
+Licensed under the [WTFPL](http://www.wtfpl.net).
