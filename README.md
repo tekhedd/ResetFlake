@@ -53,6 +53,10 @@ stats. Sometimes you can find this in your router, or you can look at the serial
 monitor output. Or hack the script to use a static IP address. We're into the
 "do it your way" part of things now.
 
+Stats are available as the default page. REST apps can browse to http://<device>/stats
+to get all stats as JSON. There is also a handy "Hello, world." rest service
+located at "/hello".
+
 ### License
 
 Licensed under the WTFPL.
