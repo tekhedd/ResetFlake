@@ -14,7 +14,6 @@
 // See https://github.com/dancol90/ESP8266Ping
 #include <ESP8266Ping.h>
 
-
 #include "FS.h"
 
 //
@@ -40,6 +39,10 @@ const char * pingHost = "resolver1.centurylink.net";
 IPAddress pingIp(205, 171, 3, 26);
 
 int relayPin = D1;
+
+//
+// -- Advanced configuration
+//
 
 // 
 // Define this to make all the timeouts shorter for debugging.
@@ -433,24 +436,8 @@ void setup()
   server.begin();  
 }
 
-void getRedirectToIndex()
-{
-  server.sendHeader("Location", String("/index.html"), true);
-  server.send( 302, "text/plain", "");
-}
-
-void getHello()
-{
-  server.send( 200, "text/plain", String("Hello, world"));
-}
-
-void getStats()
-{
-  server.send( 200, "application/json", stats.asJson());
-}
-
 ///
-/// Time to wake up
+/// wakey time
 ///
 static time_t wake_time = 0;
 
@@ -473,6 +460,26 @@ void loop()
     wake_time = now() + sleepytime;
   }
 }
+
+// -- Web handlers --
+
+void getRedirectToIndex()
+{
+  server.sendHeader("Location", String("/index.html"), true);
+  server.send( 302, "text/plain", "");
+}
+
+void getHello()
+{
+  server.send( 200, "text/plain", String("Hello, world"));
+}
+
+void getStats()
+{
+  server.send( 200, "application/json", stats.asJson());
+}
+
+// -- Main ping program --
 
 int wakeUp()
 {
