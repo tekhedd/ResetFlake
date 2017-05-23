@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ResetFlake</title>
+    <script type="text/javascript">
+        function refresh()
+        {
+            var msg = document.getElementById("msg");
+            msg.textContent = "waiting for stats...";
+                
+            var xhr = new XMLHttpRequest();
+            xhr.open('get', 'stats', true);
+            xhr.responseType = 'json';
+            xhr.onload = function()
+            {
+                var status = xhr.status;
+                if (status != 200)
+                {
+                    msg.textContent = xhr.statusText;
+                    return;
+                }
+                
+                var data = xhr.response;
+                msg.textContent = "OK";
+                document.getElementById("uptime").textContent = data.uptime;
+                document.getElementById("reset-count").textContent = data.resetCount;
+                document.getElementById("link-up").textContent = data.linkUp;
+                document.getElementById("outage-max").textContent = data.outageMax;
+                document.getElementById("outage-avg").textContent = data.outageAvg;
+                document.getElementById("ping-max").textContent = data.pingMax;
+                document.getElementById("ping-avg").textContent = data.pingAvg;
+            };
+            xhr.send();
+        }
+    </script>
+    <style>
+        body
+        {
+            background-color: #070750;
+            color: #aaa;
+        }
+        
+        .wrapper
+        {
+            max-width: 60rem;
+            margin: auto;
+        }
+        
+        .ra-btn
+        {
+            text-align: right;
+            width: 100%;
+            line-height: 2.2rem;
+            vertical-align: baseline;
+            padding: 2px;
+        }
+        
+        .data
+        {
+            background-color: #1c426c;
+            color: #000;
+            display: flex;
+            flex-flow: column wrap
+        }
+        
+        .lvpair
+        {
+            background-color: #e7e7e7;
+            color: #000;
+            
+            width: 18rem;
+            margin-left: 1rem;
+            margin-right: 1rem;
+            
+            display: flex;
+        }
+        
+        .lvpair > label
+        {
+            font-weight: bold;
+            white-space: nowrap;
+            width: 10rem;
+            flex-grow: 1;
+        }
+        
+        .lvpair > div /* data */
+        {
+            width: 7rem;
+            text-align: right;
+            float: right;
+        }
+        
+        .lvpair > *
+        {
+            padding: 2px;
+        }
+        
+    </style>
+</head>
+
+<body onload="refresh()">
+    <div class="wrapper">
+        <h3>ResetFlake Stats</h3>
+        
+        <div class="ra-btn">
+            <span id="msg"></span>
+            <button type="button" onclick="refresh(); return false;">Refresh</button>
+        </div>
+    
+        <div class="data">
+            <div class="lvpair">
+                <label>uptime</label><div><span id="uptime"></span>s</div>
+            </div>
+            <div class="lvpair">
+                <label>Reset count</label><div><span id="reset-count"></span>s</div>
+            </div>
+            <div class="lvpair">
+                <label>Time since last reset</label><div><span id="link-up"></span>s</div>
+            </div>
+            <div class="lvpair">
+                <label>Max outage length</label><div><span id="outage-max"></span>s</div>
+            </div>
+            <div class="lvpair">
+                <label>Average outage time</label><div><span id="outage-avg"></span>s</div>
+            </div>
+            <div class="lvpair">
+                <label>Max ping</label><div><span id="ping-max"></span>ms</div>
+            </div>
+            <div class="lvpair">
+                <label>Average ping</label><div><span id="ping-avg"></span>ms</div>
+            </div>
+        </div>
+    </div>
+    
+</body>
+</html>
