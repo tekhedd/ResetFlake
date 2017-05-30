@@ -1,7 +1,10 @@
 ## ResetFlake
 
 An Arduion Sketch that resets a modem or router when 
-the Internet is not reachable. For the WeMos D1 Mini or compatible board. 
+the Internet is not reachable, and shows uptime and outage
+stats as a web page and REST service.
+
+For the WeMos D1 Mini or compatible board. 
 
 Should be fairly portable to any ESP8266 setup, with some configuration.
 Note that I am using the NC (normally closed) pins on a relay attached
