@@ -2,7 +2,45 @@
 <html>
 <head>
     <title>ResetFlake</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    
     <script type="text/javascript">
+        function dhms(seconds)
+        {
+            // Format seconds as days hours:minutes:seconds
+            days = Math.floor(seconds / 86400);
+            hours = Math.floor(seconds / 3600);
+            minutes = Math.floor(seconds / 60);
+            leftovers = seconds % 60;
+            
+            var output = "";
+            if (days)
+            {
+                output += days + "d ";
+                
+                if (hours < 10)
+                    output += "0";
+            }
+                
+            if (hours)
+            {
+                output += hours + ":";
+                
+                if (minutes < 10)
+                    output += "0";
+            }
+                
+            if (minutes)
+            {
+                output += minutes + ":";
+                if (leftovers < 10)
+                    leftovers = "0" + leftovers;
+            }
+                
+            output += leftovers;
+            return output;
+        }
+        
         function refresh()
         {
             var msg = document.getElementById("msg");
@@ -22,11 +60,38 @@
                 
                 var data = xhr.response;
                 msg.textContent = "OK";
-                document.getElementById("uptime").textContent = data.uptime;
+                
+                // overall status.
+                var outage = data.outageDuration;
+                
+                var statusEl = document.getElementById("status");
+                if (outage < 0) // no outage?
+                {
+                    statusEl.textContent = 'OK';
+                }
+                else
+                {
+                    statusEl.textContent = 'DOWN: ' + dhms(outage);
+                }
+                
+                // History
+                var lastOutage = data.outageHistory[data.outageHistory.length - 1];
+                if (lastOutage.length > 0)
+                {
+                    document.getElementById("last-outage-was").textContent = dhms(lastOutage.ago);
+                    document.getElementById("last-outage-length").textContent = dhms(lastOutage.length);
+                }
+                
+                // Other stats
+                
+                document.getElementById("ping").textContent = data.ping;
+                document.getElementById("uptime").textContent = dhms(data.uptime);
+                document.getElementById("link-up").textContent = dhms(data.linkUp);
+                
+                // historical stats
                 document.getElementById("reset-count").textContent = data.resetCount;
-                document.getElementById("link-up").textContent = data.linkUp;
-                document.getElementById("outage-max").textContent = data.outageMax;
-                document.getElementById("outage-avg").textContent = data.outageAvg;
+                document.getElementById("outage-max").textContent = dhms(data.outageMax);
+                document.getElementById("outage-avg").textContent = dhms(data.outageAvg);
                 document.getElementById("ping-max").textContent = data.pingMax;
                 document.getElementById("ping-avg").textContent = data.pingAvg;
             };
@@ -36,7 +101,7 @@
     <style>
         body
         {
-            background-color: #070750;
+            background-color: #070a20;
             color: #aaa;
         }
         
@@ -60,26 +125,34 @@
             background-color: #1c426c;
             color: #000;
             display: flex;
-            flex-flow: column wrap
+            flex-flow: column wrap;
+            
+            padding-top: 0.3rem;
+            padding-bottom: 0.3rem;
+        }
+        
+        .data-block
+        {
+            width: 18rem;
+            margin-left: 0.5rem;
+            margin-right: 0.5rem;
+            margin-top: 0.5rem;
+            
+            background-color: #e7e7e7;
+            color: #000;
         }
         
         .lvpair
         {
-            background-color: #e7e7e7;
-            color: #000;
-            
-            width: 18rem;
-            margin-left: 1rem;
-            margin-right: 1rem;
-            
             display: flex;
+            flex-flow: row nowrap;
         }
         
         .lvpair > label
         {
             font-weight: bold;
             white-space: nowrap;
-            width: 10rem;
+            width: 9rem;
             flex-grow: 1;
         }
         
@@ -90,9 +163,31 @@
             float: right;
         }
         
+        .lvpair > div > .value
+        {
+        }
+
+        .lvpair > div > .units
+        {
+            display: inline-block;
+            width: 1.3em;
+            text-align: left;
+        }
+        
         .lvpair > *
         {
             padding: 2px;
+        }
+        
+        .status-block label
+        {
+            width: 5rem;
+        }
+        
+        .status-block div
+        {
+            white-space: nowrap;
+            width: 11rem;
         }
         
     </style>
@@ -108,26 +203,96 @@
         </div>
     
         <div class="data">
-            <div class="lvpair">
-                <label>uptime</label><div><span id="uptime"></span>s</div>
+            <!-- Status -->
+            <div class="data-block">
+                <div class="lvpair status-block">
+                    <label>Status</label>
+                    <div>
+                        <span id="status"></span>
+                    </div>
+                </div>
+                <div class="lvpair">
+                    <label>Ping</label>
+                    <div>
+                        <span id="ping"></span>ms
+                    </div>
+                </div>
             </div>
-            <div class="lvpair">
-                <label>Reset count</label><div><span id="reset-count"></span></div>
+            
+            <!-- History -->
+            <div class="data-block">
+                <div class="lvpair">
+                    <label>Last outage</label>
+                    <div>
+                        <span id="last-outage-was"></span> ago
+                    </div>
+                </div>
+                <div class="lvpair">
+                    <label>lasting</label>
+                    <div>
+                        <span id="last-outage-length"></span>
+                    </div>
+                </div>
             </div>
-            <div class="lvpair">
-                <label>Time since last reset</label><div><span id="link-up"></span>s</div>
+            
+            <!-- Stats and uptime -->
+            <div class="data-block">
+                <div class="lvpair">
+                    <label>Reset count</label>
+                    <div>
+                        <span class="value" id="reset-count"></span>
+                        <div class="units">&nbsp;</div>
+                    </div>
+                </div>
+                <div class="lvpair">
+                    <label>Network uptime</label>
+                    <div>
+                        <span class="value" id="link-up"></span>
+                        <div class="units"></div>
+                    </div>
+                </div>
+                <div class="lvpair">
+                    <label>ResetFlake uptime</label>
+                    <div>
+                        <span class="value" id="uptime"></span>
+                        <div class="units"></div>
+                    </div>
+                </div>
             </div>
-            <div class="lvpair">
-                <label>Max outage length</label><div><span id="outage-max"></span>s</div>
+            
+            <!-- Detailed stats (ping max/avg etc) -->
+            <div class="data-block">
+                <div class="lvpair">
+                    <label>Average ping</label>
+                    <div>
+                        <span class="value" id="ping-avg"></span>
+                        <div class="units">ms</div>
+                    </div>
+                </div>
+                <div class="lvpair">
+                    <label>Max ping</label>
+                    <div>
+                        <span class="value" id="ping-max"></span>
+                        <div class="units">ms</div>
+                    </div>
+                </div>
             </div>
-            <div class="lvpair">
-                <label>Average outage time</label><div><span id="outage-avg"></span>s</div>
-            </div>
-            <div class="lvpair">
-                <label>Max ping</label><div><span id="ping-max"></span>ms</div>
-            </div>
-            <div class="lvpair">
-                <label>Average ping</label><div><span id="ping-avg"></span>ms</div>
+            
+            <div class="data-block">
+                <div class="lvpair">
+                    <label>Average outage length</label>
+                    <div>
+                        <span class="value" id="outage-avg"></span>
+                        <div class="units"></div>
+                    </div>
+                </div>
+                <div class="lvpair">
+                    <label>Max outage length</label>
+                    <div>
+                        <span class="value" id="outage-max"></span>
+                        <div class="units"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

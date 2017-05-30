@@ -84,7 +84,7 @@ int relayPin = D1;
 // How long do we keep trying a failed ping before we give up and
 // reset the internets?
 //
-#define PING_RETRY_MS (30000)
+#define PING_RETRY_MS (75000)
 
 //
 // Time to wait between pings, when the first one fails
@@ -103,11 +103,32 @@ int relayPin = D1;
 ///
 int resetCount = 0;
 
+#define HISTORY_LENGTH (5)
+
 ///
 /// Stats
 ///
 class Stats
 {
+  class OutageHistoryElement
+  {
+  public:
+    time_t start;
+    unsigned long length;
+    OutageHistoryElement()
+    {
+      start = now();
+      length = 0;
+    }
+    
+    const OutageHistoryElement& operator=(const OutageHistoryElement & other)
+    {
+      start = other.start;
+      length = other.length;
+      return *this;
+    }
+  };
+  
 private:
   time_t _programStartTime;
   
@@ -137,12 +158,17 @@ private:
   /// We don't expect to see ping times > 1s, mostly because
   /// ESP8266Ping times out in 1s. Maybe this is configurable?
   ///
-  unsigned long _avgPing;
+  int _avgPing;
 
   ///
   /// ms
   ///
   int _maxPing;
+  
+  ///
+  /// Last ping time in ms
+  ///
+  int _ping;
 
   ///
   /// Longest outage we've seen, in seconds
@@ -154,6 +180,8 @@ private:
   ///
   unsigned long _avgOutageSec;
   
+  OutageHistoryElement _outageHistory[HISTORY_LENGTH];
+  
 public:  
   Stats()
   {
@@ -164,41 +192,14 @@ public:
     _resetCount = 0;
     _avgPing = 1;
     _maxPing = 1;
+    _ping = 0;
     _maxOutageSec = 0;
     _avgOutageSec = 0;
   }
 
   void printToSerial()
   {
-    Serial.println("stats:");
-
-    Serial.print("  uptime: ");
-    _printUptime(getSystemUptimeSec());
-    Serial.println("");
-    
-    Serial.print("  link-up: ");
-    _printUptime(getUptimeSec());
-    Serial.println("");
-
-    Serial.print("  outage-max: ");
-    Serial.print(getMaxOutageSec());
-    Serial.println("");
-    
-    Serial.print("  outage-avg: ");
-    Serial.print(getAvgOutageSec());
-    Serial.println("");
-    
-    Serial.print("  reset-count: ");
-    Serial.print(getResetCount());
-    Serial.println("");
-    
-    Serial.print("  ping-avg: ");
-    Serial.print(getAvgPingMs());
-    Serial.println("");
-    
-    Serial.print("  ping-max: ");
-    Serial.print(getMaxPingMs());
-    Serial.println("");
+    Serial.print(asJson());
   }
 
   ///
@@ -206,38 +207,85 @@ public:
   ///
   String asJson()
   {
-    String json = "{";
+    String json = "{\n";
     
     json += "\"uptime\":";
     json += getSystemUptimeSec();
-    json += ",";
+    json += ",\n";
+
+    json += "\"outageDuration\":";
+    json += getOutageDuration();
+    json += ",\n";
 
     json += "\"linkUp\":";
     json += getUptimeSec();
-    json += ",";
+    json += ",\n";
 
     json += "\"outageMax\":";
     json += getMaxOutageSec();
-    json += ",";
+    json += ",\n";
 
     json += "\"outageAvg\":";
     json += getAvgOutageSec();
-    json += ",";
+    json += ",\n";
 
     json += "\"resetCount\":";
     json += getResetCount();
-    json += ",";
+    json += ",\n";
+    
+    json += "\"ping\":";
+    json += getPingMs();
+    json += ",\n";
     
     json += "\"pingAvg\":";
     json += getAvgPingMs();
-    json += ",";
+    json += ",\n";
     
     json += "\"pingMax\":";
     json += getMaxPingMs();
+    json += ",\n";
+    
+    // Outage history!
+    json += "\"outageHistory\": [\n";
+    int i = 0;
+    while (true)
+    {
+      OutageHistoryElement el = _outageHistory[i];
+      json += " {\n";
+      json += "  \"ago\":";
+      json += now() - el.start;
+      json += ",\n";
+      json += "  \"length\":";
+      json += el.length;
+      json += "\n";
+      
+      if (i < (HISTORY_LENGTH - 1))
+      {
+        json += " },\n";
+      }
+      else
+      {
+        json += " }\n";
+        break;
+      }
+      i++;
+    }
+    json += "]\n";
 
-    json += "}";
+    json += "\n}\n";
 
     return json;
+  }
+  
+  ///
+  /// Current outage duration or -1 if no current outage...
+  ///
+  long getOutageDuration()
+  {
+    if (_outageStartTime == 0)
+      return -1; // no outage
+    
+    return now() - _outageStartTime;
   }
 
   long getSystemUptimeSec()
@@ -267,13 +315,18 @@ public:
   {
     return _resetCount;
   }
+  
+  int getPingMs()
+  {
+    return _ping;
+  }
 
-  long getAvgPingMs()
+  int getAvgPingMs()
   {
     return _avgPing;
   }
     
-  long getMaxPingMs()
+  int getMaxPingMs()
   {
     return _maxPing;
   }
@@ -310,22 +363,35 @@ public:
   ///
   void logOutageEnd(time_t when)
   {
-    if (0 == _outageStartTime)
+    if (0 == _outageStartTime) // no current outage?
       return;
 
     long outageDuration = when - _outageStartTime;
-    _outageStartTime = 0;
+    
+    Serial.print("Logging end of outage, duration: ");
+    Serial.println(outageDuration);
 
     if (outageDuration <= 0)
     {
       Serial.println("outage duration < 1s, is that possible?");
-      return;
     }
 
     if ((unsigned long)outageDuration > _maxOutageSec)
       _maxOutageSec = outageDuration;
 
     _avgOutageSec = _updateMovingAverage(_avgOutageSec, outageDuration);
+    
+    // Push all history back one here
+    
+    for (int i = 0; i < (HISTORY_LENGTH - 1); i++)
+    {
+      _outageHistory[i] = _outageHistory[i + 1];
+    }
+    OutageHistoryElement & hist = _outageHistory[HISTORY_LENGTH - 1];
+    hist.start = _outageStartTime;
+    hist.length = outageDuration;
+    
+    _outageStartTime = 0; // Reset current outage status
   }
 
   ///
@@ -334,7 +400,9 @@ public:
   ///
   void logPingTime(int pingMs)
   {
+    _ping = pingMs;
     _lastSuccessTime = now();
+    
     logOutageEnd(_lastSuccessTime);
 
     // We expect avgPing to be < 1000ms so this is safe?
@@ -570,8 +638,8 @@ bool persistentPing(IPAddress dest, long startMillis)
     }
     else
     {
-      Serial.print("retrying..");
-      delay(1000);
+      Serial.print(".");
+      delayAndServe(1000);
     }
   }
 }
@@ -582,8 +650,24 @@ void doReset()
   
   Serial.print("Resetting...");
   digitalWrite(relayPin, HIGH); // energize to disconnect: using normally-closed contacts
-  delay(STAY_OFF_MS + (resetCount * STAY_OFF_INCREMENT));
+  delayAndServe(STAY_OFF_MS + (resetCount * STAY_OFF_INCREMENT));
   digitalWrite(relayPin, LOW);
   Serial.println("done");
 }
 
+///
+/// Delay, but also serve web clients
+///
+void delayAndServe(int milliseconds)
+{
+  int ticks = milliseconds / 500;
+  int leftover = milliseconds % 500;
+  
+  while (ticks > 0)
+  {
+    --ticks;
+    delay(500);
+    server.handleClient();
+  }
+  delay(leftover);
+}
