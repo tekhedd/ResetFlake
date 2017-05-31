@@ -371,7 +371,6 @@ public:
     if (0 != _outageStartTime) // already started an outage? 
       return;
       
-    ++ _outageCount;
     _outageStartTime = now();
   }
 
@@ -520,33 +519,17 @@ void setup()
   server.on("/stats", getStats);
   server.on("/", getRedirectToIndex);
 
-  server.serveStatic("/", SPIFFS, "/"); // "max-age=86400"
+  server.serveStatic("/", SPIFFS, "/web/"); // "max-age=86400"
   server.begin();  
 }
 
-///
-/// wakey time
-///
-static time_t wake_time = 0;
-
 void loop() 
 {
-  // During sleepytime we handle web requests
-  // When we wake up we ping, and maybe reset etc.
-
-  if (now() <= wake_time)
-  {
-    server.handleClient();
-  }
-  else
-  {
-    int sleepytime = wakeUp();
-    Serial.print("zzz... (");
-    Serial.print(sleepytime);
-    Serial.println("s)");
-    
-    wake_time = now() + sleepytime;
-  }
+  int sleepytime = wakeUp();
+  Serial.print("zzz... (");
+  Serial.print(sleepytime);
+  Serial.println("s)");
+  delayAndServe(sleepytime * 1000);
 }
 
 // -- Web handlers --
@@ -678,15 +661,15 @@ void doReset()
 ///
 /// Delay, but also serve web clients
 ///
-void delayAndServe(int milliseconds)
+void delayAndServe(long milliseconds)
 {
-  int ticks = milliseconds / 500;
-  int leftover = milliseconds % 500;
+  long ticks = milliseconds / 125L;
+  int leftover = milliseconds % 125;
   
   while (ticks > 0)
   {
     --ticks;
-    delay(500);
+    delay(125);
     server.handleClient();
   }
   delay(leftover);
