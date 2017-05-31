@@ -8,10 +8,15 @@
         function dhms(seconds)
         {
             // Format seconds as days hours:minutes:seconds
-            days = Math.floor(seconds / 86400);
-            hours = Math.floor(seconds / 3600);
-            minutes = Math.floor(seconds / 60);
-            leftovers = seconds % 60;
+            var days = Math.floor(seconds / 86400);
+            
+            var hours = Math.floor(seconds / 3600);
+            hours = hours % 24;
+            
+            var minutes = Math.floor(seconds / 60);
+            minutes = minutes % 60;
+            
+            var leftovers = seconds % 60;
             
             var output = "";
             if (days)
@@ -38,6 +43,11 @@
             }
                 
             output += leftovers;
+
+            if (!days && !hours && !minutes) // only seconds?
+            {
+                output += 's';
+            }
             return output;
         }
         
@@ -47,7 +57,8 @@
             msg.textContent = "waiting for stats...";
                 
             var xhr = new XMLHttpRequest();
-            xhr.open('get', 'stats', true);
+            // xhr.open('get', 'stats', true);
+            xhr.open('get', 'http://10.1.1.100/stats', true);
             xhr.responseType = 'json';
             xhr.onload = function()
             {
@@ -71,12 +82,17 @@
                 }
                 else
                 {
-                    statusEl.textContent = 'DOWN: ' + dhms(outage);
+                    statusEl.textContent = 'DOWN ' + dhms(outage);
                 }
                 
                 // History
                 var lastOutage = data.outageHistory[data.outageHistory.length - 1];
-                if (lastOutage.length > 0)
+                if (lastOutage.length <= 0) // never!
+                {
+                    document.getElementById("last-outage-was").textContent = "NEVER";
+                    document.getElementById("last-outage-length").textContent = dhms(lastOutage.length);
+                }
+                else
                 {
                     document.getElementById("last-outage-was").textContent = dhms(lastOutage.ago);
                     document.getElementById("last-outage-length").textContent = dhms(lastOutage.length);
@@ -84,7 +100,13 @@
                 
                 // Other stats
                 
-                document.getElementById("ping").textContent = data.ping;
+                if (outage < 0) { // no outage?
+                    document.getElementById("ping").textContent = data.ping;
+                }
+                else {
+                    document.getElementById("ping").textContent = "???";
+                }
+                
                 document.getElementById("uptime").textContent = dhms(data.uptime);
                 document.getElementById("link-up").textContent = dhms(data.linkUp);
                 
@@ -241,21 +263,18 @@
                     <label>Reset count</label>
                     <div>
                         <span class="value" id="reset-count"></span>
-                        <div class="units">&nbsp;</div>
                     </div>
                 </div>
                 <div class="lvpair">
                     <label>Network uptime</label>
                     <div>
                         <span class="value" id="link-up"></span>
-                        <div class="units"></div>
                     </div>
                 </div>
                 <div class="lvpair">
                     <label>ResetFlake uptime</label>
                     <div>
                         <span class="value" id="uptime"></span>
-                        <div class="units"></div>
                     </div>
                 </div>
             </div>
@@ -265,15 +284,13 @@
                 <div class="lvpair">
                     <label>Average ping</label>
                     <div>
-                        <span class="value" id="ping-avg"></span>
-                        <div class="units">ms</div>
+                        <span class="value" id="ping-avg"></span>ms
                     </div>
                 </div>
                 <div class="lvpair">
                     <label>Max ping</label>
                     <div>
-                        <span class="value" id="ping-max"></span>
-                        <div class="units">ms</div>
+                        <span class="value" id="ping-max"></span>ms
                     </div>
                 </div>
             </div>
@@ -283,14 +300,12 @@
                     <label>Average outage length</label>
                     <div>
                         <span class="value" id="outage-avg"></span>
-                        <div class="units"></div>
                     </div>
                 </div>
                 <div class="lvpair">
                     <label>Max outage length</label>
                     <div>
                         <span class="value" id="outage-max"></span>
-                        <div class="units"></div>
                     </div>
                 </div>
             </div>
