@@ -108,6 +108,7 @@
             document.getElementById("link-up").textContent = dhms(data.linkUp);
             
             // historical stats
+            document.getElementById("outage-count").textContent = data.outageCount;
             document.getElementById("reset-count").textContent = data.resetCount;
             document.getElementById("outage-max").textContent = dhms(data.outageMax);
             document.getElementById("outage-avg").textContent = dhms(data.outageAvg);

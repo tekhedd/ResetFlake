@@ -151,7 +151,16 @@ private:
   /// Count of network resets since boot. Yeah it'll eventually wrap, but
   /// if it takes >90s to do a reset, how long will that take?
   ///
+  /// There may be multiple resets during a long outage so this is not the most
+  /// useful statistic.
+  ///
   unsigned long _resetCount;
+  
+  ///
+  /// Number of times we have lost the internet, regardless of whether it was
+  /// reset.
+  ///
+  unsigned long _outageCount;
 
   ///
   /// Exponentially weighted average ping time in ms.
@@ -190,6 +199,7 @@ public:
     _lastSuccessTime = 0; // never
     _outageStartTime = 0; // no current outage
     _resetCount = 0;
+    _outageCount = 0;
     _avgPing = 1;
     _maxPing = 1;
     _ping = 0;
@@ -231,6 +241,10 @@ public:
 
     json += "\"resetCount\":";
     json += getResetCount();
+    json += ",\n";
+    
+    json += "\"outageCount\":";
+    json += getOutageCount();
     json += ",\n";
     
     json += "\"ping\":";
@@ -301,19 +315,24 @@ public:
     return now() - _lastResetTime;
   }
   
-  long getMaxOutageSec()
+  unsigned long getMaxOutageSec()
   {
     return _maxOutageSec;
   }
     
-  long getAvgOutageSec()
+  unsigned long getAvgOutageSec()
   {
     return _avgOutageSec;
   }
 
-  long getResetCount()
+  unsigned long getResetCount()
   {
     return _resetCount;
+  }
+  
+  unsigned long getOutageCount()
+  {
+    return _outageCount;
   }
   
   int getPingMs()
@@ -352,6 +371,7 @@ public:
     if (0 != _outageStartTime) // already started an outage? 
       return;
       
+    ++ _outageCount;
     _outageStartTime = now();
   }
 
