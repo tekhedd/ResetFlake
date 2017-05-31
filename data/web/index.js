@@ -101,7 +101,7 @@
                 document.getElementById("ping").textContent = data.ping;
             }
             else {
-                document.getElementById("ping").textContent = "???";
+                document.getElementById("ping").textContent = "FAIL";
             }
             
             document.getElementById("uptime").textContent = dhms(data.uptime);
