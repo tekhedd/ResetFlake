@@ -1,0 +1,90 @@
+body
+{
+    background-color: #070a20;
+    color: #aaa;
+}
+
+.wrapper
+{
+    max-width: 60rem;
+    margin: auto;
+}
+
+.ra-btn
+{
+    text-align: right;
+    width: 100%;
+    line-height: 2.2rem;
+    vertical-align: baseline;
+    padding: 2px;
+}
+
+.data
+{
+    background-color: #1c426c;
+    color: #000;
+    display: flex;
+    flex-flow: column wrap;
+    
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+}
+
+.data-block
+{
+    width: 18rem;
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+    margin-top: 0.5rem;
+    
+    background-color: #e7e7e7;
+    color: #000;
+}
+
+.lvpair
+{
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+.lvpair > label
+{
+    font-weight: bold;
+    white-space: nowrap;
+    width: 9rem;
+    flex-grow: 1;
+}
+
+.lvpair > div /* data */
+{
+    width: 7rem;
+    text-align: right;
+    float: right;
+}
+
+.lvpair > div > .value
+{
+}
+
+.lvpair > div > .units
+{
+    display: inline-block;
+    width: 1.3em;
+    text-align: left;
+}
+
+.lvpair > *
+{
+    padding: 2px;
+}
+
+.status-block label
+{
+    width: 5rem;
+}
+
+.status-block div
+{
+    white-space: nowrap;
+    width: 11rem;
+}
