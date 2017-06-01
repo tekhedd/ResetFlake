@@ -25,7 +25,7 @@
                 output += "0";
         }
             
-        if (hours)
+        if (days || hours)
         {
             output += hours + ":";
             
@@ -33,13 +33,13 @@
                 output += "0";
         }
             
-        if (minutes)
+        if (days || hours || minutes)  // <minutes>:<seconds>
         {
             output += minutes + ":";
             if (leftovers < 10)
                 leftovers = "0" + leftovers;
         }
-            
+
         output += leftovers;
 
         if (!days && !hours && !minutes) // only seconds?
