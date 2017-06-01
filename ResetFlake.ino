@@ -370,7 +370,8 @@ public:
   {
     if (0 != _outageStartTime) // already started an outage? 
       return;
-      
+    
+    ++ _outageCount;
     _outageStartTime = now();
   }
 
