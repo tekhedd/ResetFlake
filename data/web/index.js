@@ -67,7 +67,7 @@
             }
             
             var data = xhr.response;
-            msg.textContent = "OK";
+            msg.textContent = "updating display...";
             
             // overall status.
             var outage = data.outageDuration;
@@ -114,6 +114,10 @@
             document.getElementById("outage-avg").textContent = dhms(data.outageAvg);
             document.getElementById("ping-max").textContent = data.pingMax;
             document.getElementById("ping-avg").textContent = data.pingAvg;
+
+            // Last refreshed on...
+            document.getElementById("refresh-date").textContent = new Date().toString();
+            msg.textContent = "OK";
         };
         xhr.send();
     }
