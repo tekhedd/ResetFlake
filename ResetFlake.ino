@@ -1,9 +1,13 @@
+
 // 
 // ResetFlake - it resets your flaky internet connectin.
 //
 // Written for ESP8266 (WeMos D1 Mini) 
 // with Relay Shield, or anything switched via pin D1.
 //
+
+#include <ArduinoJson.h>
+#include <FS.h>
 #include <Time.h>
 #include <TimeLib.h>
 
@@ -14,14 +18,12 @@
 // See https://github.com/dancol90/ESP8266Ping
 #include <ESP8266Ping.h>
 
-#include "FS.h"
 
 //
 // -- Configuration
 //
-// TODO: web config 
 
-const char * ssid = "mywifi";
+const char * ssid = "mywifi";      // overridden in "/config.json"
 const char * passwd = "password";
 
 // Use both host name and IP to check that dns and routing are working. 
@@ -489,9 +491,34 @@ void setup()
   digitalWrite(LED_BUILTIN, HIGH);
   digitalWrite(relayPin, LOW);
 
-  // File system
+  // Serve web pages and get config from the filesystem.
   if (!SPIFFS.begin()) {
     Serial.println("SPIFFS init failed");
+  }
+
+  // Read json config if found
+  File configFile = SPIFFS.open("/config.json", "r");
+  if (!configFile)
+  {
+    Serial.println("ERROR: config.json not found; using defaults");
+  }
+  else
+  {
+    // Warning: parse() copies the entire file into memory.
+    DynamicJsonBuffer jsonBuffer; // or Static<> or Dynamic
+    JsonObject & root =  jsonBuffer.parse(configFile);
+    configFile.close();
+    
+    if (!root.success())
+    {
+      Serial.println("Could not parse config.json; using defaults");
+    }
+    else
+    {
+      // root.printTo(Serial);
+      ssid = root["ssid"];
+      passwd = root["password"];
+    }
   }
 
   Serial.print("Connecting to ");
