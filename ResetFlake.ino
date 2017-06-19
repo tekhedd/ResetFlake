@@ -1,4 +1,3 @@
-
 // 
 // ResetFlake - it resets your flaky internet connectin.
 //
@@ -62,6 +61,8 @@ int relayPin = D1;
 // Time to wait after a reset
 // Initial wait time is MS + INCREMENT
 //
+// CenturyLink's docs recommend waiting, what, 2 minutes?
+//
 // My CenturyLinkTM C1000A + Netgear R7000 combo is
 // not ready after 60s--typically takes about 75. 
 // Wait 120s (75+45) to have some headroom. 
@@ -84,9 +85,10 @@ int relayPin = D1;
 // Ping config: A reset takes ~90s, and then everything downstream
 // of the modem has to reconfigure. Sometimes the network recovers.
 // How long do we keep trying a failed ping before we give up and
-// reset the internets?
+// reset the internets? Let's be very patient, the internet is a
+// fickle thing.
 //
-#define PING_RETRY_MS (75000)
+#define PING_RETRY_MS (90000)
 
 //
 // Time to wait between pings, when the first one fails
@@ -98,6 +100,8 @@ int relayPin = D1;
 //
 
 ///
+/// Internal reset counter -- this does not keep counting past 5-ish.
+///
 /// How many consecutive times have we tried a reset and failed?
 /// 
 /// (Should be less than 5 or so. Past that we stop counting and therefore
@@ -105,7 +109,16 @@ int relayPin = D1;
 ///
 int resetCount = 0;
 
-#define HISTORY_LENGTH (5)
+#define HISTORY_LENGTH (6)
+
+typedef enum SystemStatusEnum
+{
+  STATUS_UNKNOWN, // 0, not used
+  STATUS_OK,
+  STATUS_DOWN,
+  STATUS_RESETTING,
+  STATUS_RESET_WAIT
+} SystemStatus;
 
 ///
 /// Stats
@@ -132,6 +145,11 @@ class Stats
   };
   
 private:
+  ///
+  /// Current status
+  ///
+  SystemStatus _systemStatus;
+  
   time_t _programStartTime;
   
   ///
@@ -140,10 +158,10 @@ private:
   time_t _lastSuccessTime;
 
   ///
-  /// Time the current outage started, or 0 if there ain't one.
+  /// Time the current outage started, or 0 if everything is fine
   ///
   time_t _outageStartTime;
-
+  
   ///
   /// Time the power switch was last cycled
   ///
@@ -158,12 +176,6 @@ private:
   ///
   unsigned long _resetCount;
   
-  ///
-  /// Number of times we have lost the internet, regardless of whether it was
-  /// reset.
-  ///
-  unsigned long _outageCount;
-
   ///
   /// Exponentially weighted average ping time in ms.
   /// We don't expect to see ping times > 1s, mostly because
@@ -196,12 +208,12 @@ private:
 public:  
   Stats()
   {
+    _systemStatus = STATUS_UNKNOWN;
     _programStartTime = now();
     _lastResetTime = _programStartTime; // as far as we know.
     _lastSuccessTime = 0; // never
     _outageStartTime = 0; // no current outage
     _resetCount = 0;
-    _outageCount = 0;
     _avgPing = 1;
     _maxPing = 1;
     _ping = 0;
@@ -221,6 +233,21 @@ public:
   {
     String json = "{\n";
     
+    json += "\"status\":";
+    switch (_systemStatus)
+    {
+    case STATUS_OK:         json += "\"OK\"";         break;
+    case STATUS_DOWN:       json += "\"DOWN\"";       break;
+    case STATUS_RESETTING:  json += "\"RESETTING\"";  break;
+    case STATUS_RESET_WAIT: json += "\"RESET_WAIT\""; break;
+    
+    default:
+    case STATUS_UNKNOWN:
+      json += "\"UNKNOWN\"";
+      break;
+    }
+    json += ",\n";
+
     json += "\"uptime\":";
     json += getSystemUptimeSec();
     json += ",\n";
@@ -243,10 +270,6 @@ public:
 
     json += "\"resetCount\":";
     json += getResetCount();
-    json += ",\n";
-    
-    json += "\"outageCount\":";
-    json += getOutageCount();
     json += ",\n";
     
     json += "\"ping\":";
@@ -332,11 +355,6 @@ public:
     return _resetCount;
   }
   
-  unsigned long getOutageCount()
-  {
-    return _outageCount;
-  }
-  
   int getPingMs()
   {
     return _ping;
@@ -358,6 +376,7 @@ public:
   void logReset()
   {
     ++ _resetCount;
+    _systemStatus = STATUS_RESETTING;
     
     // Log stats about uptime
     time_t nowTime = now();
@@ -365,20 +384,31 @@ public:
     // TODO: collect historical uptime stats?
     // long uptime = nowTime - _lastResetTime;
     
+    // Assume here that the outage starts at the last successful ping
+    _outageStartTime = _lastSuccessTime;
     _lastResetTime = nowTime;
   }
-
-  void logOutageStart()
+  
+  ///
+  /// After resetting, we wait a bit before we try to ping again
+  ///
+  void logResetWait()
   {
-    if (0 != _outageStartTime) // already started an outage? 
-      return;
+    _systemStatus = STATUS_RESET_WAIT;
+  }
+  
+  void logPingFail()
+  {
+    // We don't ping while resetting, so we can safely assume that the reset
+    // is over:
+    _systemStatus = STATUS_DOWN;
     
-    ++ _outageCount;
-    _outageStartTime = now();
+    // TODO: report ping fail time for impatient user (me!)
   }
 
   ///
-  /// Called when an outage ends to update max outage statistics.
+  /// Called when an outage ends (with a successful ping)
+  /// to update max outage statistics.
   /// Call logOutageStart() to start an outage.
   ///
   /// If there is not currently an outage, does nothing.
@@ -388,6 +418,8 @@ public:
     if (0 == _outageStartTime) // no current outage?
       return;
 
+    _systemStatus = STATUS_OK;
+    
     long outageDuration = when - _outageStartTime;
     
     Serial.print("Logging end of outage, duration: ");
@@ -660,7 +692,7 @@ bool persistentPing(IPAddress dest, long startMillis)
       return true;
     }
 
-    stats.logOutageStart(); // If we got here, ping failed. Noooo!
+    stats.logPingFail(); // If we got here, ping failed. Noooo!
     
     if ((millis() - startMillis) > PING_RETRY_MS) // timed out?
     {
@@ -684,6 +716,8 @@ void doReset()
   delayAndServe(STAY_OFF_MS + (resetCount * STAY_OFF_INCREMENT));
   digitalWrite(relayPin, LOW);
   Serial.println("done");
+  
+  stats.logResetWait(); // Now we wait, and wait, and wait.
 }
 
 ///

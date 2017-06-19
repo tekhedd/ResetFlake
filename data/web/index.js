@@ -73,14 +73,12 @@
             var outage = data.outageDuration;
             
             var statusEl = document.getElementById("status");
-            if (outage < 0) // no outage?
+            var statusStr = data.status;
+            if (outage >= 0) // no outage?
             {
-                statusEl.textContent = 'OK';
+                statusStr = statusStr + ' ' + dhms(outage);
             }
-            else
-            {
-                statusEl.textContent = 'DOWN ' + dhms(outage);
-            }
+            statusEl.textContent = statusStr;
             
             // History
             var lastOutage = data.outageHistory[data.outageHistory.length - 1];
@@ -108,7 +106,6 @@
             document.getElementById("link-up").textContent = dhms(data.linkUp);
             
             // historical stats
-            document.getElementById("outage-count").textContent = data.outageCount;
             document.getElementById("reset-count").textContent = data.resetCount;
             document.getElementById("outage-max").textContent = dhms(data.outageMax);
             document.getElementById("outage-avg").textContent = dhms(data.outageAvg);
