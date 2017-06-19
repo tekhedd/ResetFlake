@@ -211,7 +211,7 @@ public:
     _systemStatus = STATUS_UNKNOWN;
     _programStartTime = now();
     _lastResetTime = _programStartTime; // as far as we know.
-    _lastSuccessTime = 0; // never
+    _lastSuccessTime = now(); // set to now because also start of outage if currently down
     _outageStartTime = 0; // no current outage
     _resetCount = 0;
     _avgPing = 1;
