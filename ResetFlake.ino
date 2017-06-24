@@ -63,11 +63,10 @@ int relayPin = D1;
 //
 // CenturyLink's docs recommend waiting, what, 2 minutes?
 //
-// My CenturyLinkTM C1000A + Netgear R7000 combo is
-// not ready after 60s--typically takes about 75. 
-// Wait 120s (75+45) to have some headroom. 
+// VDSL2 takes literally forever (OK, really about 4 minutes) to renegotiate and
+// authenticate.
 //
-#define RETRY_WAIT_S (75)
+#define RETRY_WAIT_S (240)
 
 #ifdef IMPATIENT_DEBUG_MODE
 #define RETRY_WAIT_INCREMENT_S (45)
@@ -82,7 +81,7 @@ int relayPin = D1;
 #define STAY_OFF_INCREMENT (1000)
 
 //
-// Ping config: A reset takes ~90s, and then everything downstream
+// Ping config: A reset takes >90s, and then everything downstream
 // of the modem has to reconfigure. Sometimes the network recovers.
 // How long do we keep trying a failed ping before we give up and
 // reset the internets? Let's be very patient, the internet is a
@@ -334,7 +333,7 @@ public:
 
   long getUptimeSec()
   {
-    if (_outageStartTime != 0)
+    if (_systemStatus != STATUS_OK)
       return 0;  // we're down *now*
       
     return now() - _lastResetTime;
@@ -415,11 +414,11 @@ public:
   ///
   void logOutageEnd(time_t when)
   {
+    _systemStatus = STATUS_OK;
+    
     if (0 == _outageStartTime) // no current outage?
       return;
 
-    _systemStatus = STATUS_OK;
-    
     long outageDuration = when - _outageStartTime;
     
     Serial.print("Logging end of outage, duration: ");
