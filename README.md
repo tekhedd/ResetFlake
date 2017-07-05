@@ -1,6 +1,6 @@
 ## ResetFlake
 
-An Arduion Sketch that resets a modem or router when 
+An Arduino Sketch that resets a modem, router, or other device when 
 the Internet is not reachable, and shows uptime and outage
 stats as a web page and REST service.
 
