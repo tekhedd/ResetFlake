@@ -84,10 +84,10 @@ int relayPin = D1;
 // Ping config: A reset takes >90s, and then everything downstream
 // of the modem has to reconfigure. Sometimes the network recovers.
 // How long do we keep trying a failed ping before we give up and
-// reset the internets? Let's be very patient, the internet is a
-// fickle thing.
+// reset the internets? Let's be very patient, and wait for at least
+// the length of a pop song.
 //
-#define PING_RETRY_MS (90000)
+#define PING_RETRY_MS (180000)
 
 //
 // Time to wait between pings, when the first one fails
@@ -554,7 +554,8 @@ void setup()
 
   Serial.print("Connecting to ");
   Serial.println(ssid);
-  
+
+  WiFi.mode(WIFI_STA); // defaults to BOTH, AP + Station, which is not what we want
   WiFi.begin(ssid, passwd);
 
   // Wait for WIFI and blink while attempting
